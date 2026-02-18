@@ -1,4 +1,7 @@
 import streamlit as st
+import pandas as pd
+from nsepython import *
+
 
 # Page Configuration for Mobile Responsiveness
 st.set_page_config(page_title="TradeMaster Pro", layout="centered")
@@ -20,7 +23,9 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 st.title("📈 TradeMaster Pro")
-tab1, tab2 = st.tabs(["Stock Averaging", "Options Calculator"])
+# tab1, tab2 = st.tabs(["Stock Averaging", "Options Calculator"])
+tab1, tab2, tab3 = st.tabs(["Stock Averaging", "Options Calculator", "Live Option Chain"])
+
 
 # --- TAB 1: STOCK AVERAGING ---
 with tab1:
@@ -66,7 +71,7 @@ with tab2:
     # Global Parameters in Sidebar or Top
     c1, c2, c3 = st.columns(3)
     with c1:
-        lot_size = st.number_input("Lot Size", value=50, step=1)
+        lot_size = st.number_input("Lot Size", value=65, step=1)
     with c2:
         br_per_order = st.number_input("Brokerage/Order (₹)", value=20.0)
     with c3:
@@ -110,3 +115,49 @@ with tab2:
             """, unsafe_allow_html=True)
         else:
             st.error("Please enter lot quantity and exit price.")
+# --- TAB 3 : LIVE OPTION CHAIN ---
+with tab3:
+
+    st.markdown("<p class='main-header'>Live NSE Option Chain</p>", unsafe_allow_html=True)
+
+    symbol = st.text_input("Enter NSE Symbol (Example: NIFTY, BANKNIFTY, RELIANCE)", value="NIFTY")
+
+    if st.button("Fetch Option Chain"):
+
+        try:
+            oc = nse_optionchain_scrapper(symbol.upper())
+
+            spot = oc['records']['underlyingValue']
+            expiry = oc['records']['expiryDates'][0]
+
+            st.success(f"Spot Price : {spot} | Nearest Expiry : {expiry}")
+
+            data = []
+
+            for item in oc['records']['data']:
+
+                strike = item['strikePrice']
+
+                ce = item.get('CE', {})
+                pe = item.get('PE', {})
+
+                row = {
+                    "Strike": strike,
+
+                    "CE OI": ce.get('openInterest', 0),
+                    "CE Chg OI": ce.get('changeinOpenInterest', 0),
+                    "CE LTP": ce.get('lastPrice', 0),
+
+                    "PE LTP": pe.get('lastPrice', 0),
+                    "PE Chg OI": pe.get('changeinOpenInterest', 0),
+                    "PE OI": pe.get('openInterest', 0),
+                }
+
+                data.append(row)
+
+            df = pd.DataFrame(data)
+
+            st.dataframe(df, use_container_width=True)
+
+        except Exception as e:
+            st.error("NSE blocked request. Retry after few seconds.")
