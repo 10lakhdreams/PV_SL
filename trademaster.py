@@ -1,6 +1,5 @@
 import streamlit as st
-import pandas as pd
-from nsepython import *
+
 
 
 # Page Configuration for Mobile Responsiveness
